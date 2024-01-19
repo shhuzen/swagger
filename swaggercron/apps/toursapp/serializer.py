@@ -65,17 +65,32 @@ class ScheduleSerializer(serializers.ModelSerializer):
 class PictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = PictureModel
-        fields = ['image','id']
+        fields = ['image']
         
         
 class TourSerializer(serializers.ModelSerializer):
-    pictures = PictureSerializer(many=True,read_only=True)  
+    #Простой сериализатор с ключом 
+    # image отдает pictures:[{image:image.png}]
+    #pictures = PictureSerializer(many=True,read_only=True) 
+    
+    #Отдает лист pictures:['image.png']
+    pictures = serializers.SerializerMethodField()
+
+
+
     locations = LocationSerializer(many=True)  
     schedule = ScheduleSerializer(many=True,read_only=True) 
+    
     class Meta:
         model = TourModel
         read_only_fields =('id',)
         exclude = ('profile',)
+    #функция которая отдает лист без ключей
+    def get_pictures(self, obj):
+        pictures_queryset = PictureModel.objects.filter(tourkey=obj)
+        serializer = PictureSerializer(pictures_queryset, many=True)
+        return [next(iter(x.values())) for x in serializer.data]
+        
     def create(self, validated_data):
         validated_data_Location = validated_data.pop('locations',None)
         instance = TourModel.objects.create(**validated_data)
@@ -101,7 +116,8 @@ class TourSerializer(serializers.ModelSerializer):
                 instance.add(item)
             else:
                 item = model.objects.create(**item_data)
-                instance.add(item)
+                instance.add(item)    
+
     # def validate_pictures(self, value):
     #     min_pictures = 3
     #     max_pictures = 6
